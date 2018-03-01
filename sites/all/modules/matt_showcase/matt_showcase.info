@@ -1,0 +1,7 @@
+name = Showcase functions
+description = Handles showcase images on the home page
+package = Matt
+core = 7.x
+
+
+

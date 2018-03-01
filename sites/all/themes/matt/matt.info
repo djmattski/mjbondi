@@ -1,0 +1,32 @@
+name = Matt
+description = Matt theme
+package = Core
+version = VERSION
+core = 7.x
+
+;Styles
+;stylesheets[all][] = css/styles.css
+stylesheets[all][] = css/main.css
+
+;Regions
+regions[header] = Header
+regions[highlighted] = Highlighted
+regions[help] = Help
+regions[content] = Content
+regions[sidebar_first] = Left sidebar
+regions[sidebar_second] = Right sidebar
+regions[footer] = Footer
+
+;Scripts
+;scripts[] = js/mootools-core-1.4.0.js
+;scripts[] = js/mootools-more-1.4.0.1.js
+;scripts[] = js/utilities.js
+scripts[] = js/vendor/modernizr-2.6.2.min.js
+scripts[] = js/vendor/iscroll.js
+scripts[] = js/dist/main.min.js
+
+
+; Information added by drupal.org packaging script on 2011-01-05
+version = "7.0"
+project = "drupal"
+datestamp = "1294208756"

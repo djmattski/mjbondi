@@ -1,0 +1,5 @@
+; $Id$
+name = Main menu
+description = Outputs the menu and all children of the active link
+package = Matt
+core = 7.x

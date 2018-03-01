@@ -1,0 +1,186 @@
+<?php
+
+/**
+ * Implementation of hook_theme
+ */
+
+function matt_main_nav_theme() {
+  return array(
+    'matt_main_nav' => array(
+       'function' => 'matt_main_nav',
+       'arguments' => array('variables' => NULL)
+    )
+  );
+}
+
+/**
+
+############ORIGINAL CODE from theme_links()#############
+
+* The function that is being called
+* Note only the main links have been passed in $variables['links']
+*/
+
+function matt_main_nav($variables){
+	
+	/*
+	$links = $variables['links'];
+	$attributes = $variables['attributes'];
+	$heading = '';
+	global $language_url, $base_url;
+	$output = '';
+	
+	
+	$output .= '<ul id="'.$attributes['id'].'">';
+	
+	$num_links = count($links);
+	$i = 1;
+	
+	//print_r($links);
+	
+	foreach ($links as $key => $link) {
+
+		
+		//Check for any children
+		//Obtain id for current link in the loop
+		
+		$sqlTitle = $link['title'];
+		$sql = 'SELECT m.mlid, m.has_children FROM {menu_links} AS m WHERE m.link_title = :title';
+		$result = db_query($sql, array(':title' => $sqlTitle));
+		$linkId = 0;
+		
+		foreach ($result as $record) {
+			$hasKids = $record->has_children;
+			$linkId = $record->mlid;
+		}
+		
+		//See if mlid is present in the active trail
+		$trail = menu_get_active_trail();
+		$active = false;
+		foreach($trail as $trailCheck){
+			if(array_key_exists('mlid',$trailCheck)){
+				if($trailCheck['mlid'] == $linkId){
+					$active = true;
+				}
+			}
+		}
+		
+		
+		$class = array();
+		// Add first, last and active classes to the list of links to help out themers.
+		if ($i == 1) {
+			$class[] = 'first';
+		}
+		if ($i == $num_links) {
+			$class[] = 'last';
+		}
+		
+		//Check for active state
+		if (isset($link['href']) && ($link['href'] == $_GET['q'] || ($link['href'] == '<front>' && drupal_is_front_page()))
+			&& (empty($link['language']) || $link['language']->language == $language_url->language)) {
+				if(($hasKids > 0) && $active){
+					$class[] = 'active';
+				}else{
+					$class[] = 'active';
+				}
+		}
+		
+		$output .= '<li'.drupal_attributes(array('class' => $class)).'>';
+		
+		if (isset($link['href'])) {
+			//Take out the link to home
+			if($link['title'] != 'Home'){
+				//Re-direct the portfolio page to the first album
+				if($link['href']=='node/5'){
+					$output .= l($link['title'], 'portfolio/chilean-navy', $link);
+				}else{		
+					// Pass in $link as $options, they share the same keys.
+					$output .= l($link['title'], $link['href'], $link);
+				}
+			}
+		}elseif (!empty($link['title'])) {
+			// Some links are actually not links, but we wrap these in <span> for adding title and class attributes.
+			if (empty($link['html'])) {
+				$link['title'] = check_plain($link['title']);
+			}
+			$span_attributes = '';
+			if (isset($link['attributes'])) {
+				$span_attributes = drupal_attributes($link['attributes']);
+			}
+			$output .= '<span' . $span_attributes . '>' . $link['title'] . '</span>';
+		}
+		
+		//Return any children
+		if(($hasKids > 0) && $active){
+			$vars = array('title'=>$link['title'],'menuName'=>'main-menu');
+			$output .= returnChildren($vars);
+		}
+		
+		
+		$i++;
+		$output .= "</li>\n";
+	}
+	
+	$output .= '</ul>';
+	
+	
+	return $output;
+	
+*/
+
+$tree = menu_tree_all_data('main-menu');
+	$linksArr = menu_tree_output($tree);
+	
+	//Remove the home link
+	$NewlinksArr = array_shift($linksArr);
+	
+	//print_r($linksArr[365]);
+	
+	$output = drupal_render($linksArr);
+	return $output;
+
+}
+
+
+function returnChildren($variables){
+	
+	global $language_url, $base_url;
+	$title = $variables['title'];
+	$menuName = $variables['menuName'];
+	
+	$htmlLink = '';
+	$childtree = array();
+	$output = '';
+	
+	//Load the menu
+	$menuTree = menu_tree_all_data($menuName);
+	if(isset($menuTree)){
+		foreach ($menuTree as $key){
+		  if ($key['link']['link_title'] == $title){
+			$childtree = $key['below'];
+			break;
+		  }
+		}
+	}
+	
+	
+	if(count($childtree) > 0){
+		//die(print_r($childtree));
+		$output = '<ul class="submenu">';
+		foreach($childtree as $link){
+			if (isset($link['link']['href']) && ($link['link']['href'] == $_GET['q'] || ($link['link']['href'] == '<front>' && drupal_is_front_page()))
+				&& (empty($link['link']['language']) || $link['link']['language']->language == $language_url->language)) {
+				$class = ' class="active"';
+			}else{
+				$class = '';	
+			}
+			$htmlLink = l($link['link']['link_title'],$link['link']['link_path']);
+			$output .= '<li'.$class.'>'.$htmlLink.'</li>';
+		}
+		$output .= '</ul>';
+	}
+	
+	return $output;
+
+
+}

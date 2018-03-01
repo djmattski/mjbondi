@@ -1,0 +1,355 @@
+<?php
+
+/**
+ * Implementation of hook_menu
+ */
+ 
+ function matt_portfolio_menu(){
+	$items['getMyText'] = array(
+		'title' => 'Get my text', 
+		'page callback' => 'getMyText_func', 
+		'access arguments' => array('access content'), 
+		'type' => MENU_CALLBACK,
+	);
+	
+	$items['saveForm'] = array(
+		'title' => 'Save Form', 
+		'page callback' => 'saveForm_func', 
+		'access arguments' => array('access content'), 
+		'type' => MENU_CALLBACK,
+	);
+	
+	return $items; 
+ }
+ 
+ 
+ function saveForm_func($email = ''){
+	$html = '';
+	
+	if($email != ''){
+		//Check that the email address has not already been added to the list
+		$sql = "SELECT COUNT(*) AS count FROM {subscribers} AS s WHERE s.email = :email";
+		$result = db_query($sql,array(':email'=>$email));
+		$number_of_rows = $result->rowCount();
+		if($number_of_rows > 0){
+			foreach($result as $record){
+				if($record->count > 0){
+					$proceed = false;
+				}else{
+					$proceed = true;
+				}
+			}
+		}
+		
+		if($proceed){
+		
+			$nid = db_insert('subscribers') // Table name no longer needs {}
+			->fields(array(
+			  'email' => $email,
+			))
+			->execute();
+			
+			if($nid != NULL){
+				$html .= 'Thanks!<br/>Sit tight for the next story on the site.';
+			}else{
+				$html .= 'Sorry, could not save your email address.';
+			}
+		}else{
+			$html .= 'Sorry, that email address has already been added.';	
+		}
+	}else{
+		$html .= 'Sorry, could not save your email address.';
+	}
+	
+	echo $html;
+	
+ }
+ 
+ 
+ 
+ function getMyText_func($title = ''){
+	 
+	global $base_url;
+	$html = '';
+	$jsonArr = array();
+	 
+	 
+	//Sanatise
+	$pattern = '/[^a-z_0-9]/';
+	if(preg_match($pattern,$title) == 0){
+		$sql = "SELECT n.title, fdb.body_value ".
+				"FROM {node} AS n ".
+				"LEFT JOIN {field_data_body} AS fdb ON(fdb.entity_id = n.nid) ".
+				"WHERE n.type = :type AND n.title = :title";
+		$result = db_query($sql,array(':type' => 'blog',':title'=>$title));
+		$number_of_rows = $result->rowCount();
+		if($number_of_rows > 0){
+			foreach($result as $record){
+				$html .= $record->body_value;		
+			}
+			$jsonArr['new']  = true;
+		}
+	}
+	
+	if($html == ''){ 
+		//Attempts have failed - get the album text
+		
+		$posRight = strrpos($title,'_');
+		$subTitle = substr($title,0,$posRight);
+		$newTitle = str_replace('_',' ',$subTitle);
+		
+		$sql = "SELECT n.title, fdb.body_value ".
+				"FROM {node} AS n ".
+				"LEFT JOIN {field_data_body} AS fdb ON(fdb.entity_id = n.nid) ".
+				"WHERE n.type = :type AND n.title LIKE :like";
+		$like = "%".$newTitle;
+		$result = db_query($sql,array(':type' => 'portfolio',':like'=>$like));
+		$number_of_rows = $result->rowCount();
+		if($number_of_rows > 0){
+			foreach($result as $record){
+				$html .= $record->body_value;		
+			}
+			$jsonArr['new']  = false;
+		}
+	}
+	 
+    $jsonArr['content'] = $html;
+    echo json_encode($jsonArr);
+ }
+
+
+/**
+ * Implementation of hook_theme
+ */
+
+function matt_portfolio_theme() {
+  return array(
+    'matt_portfolio' => array(
+       'function' => 'matt_portfolio_func',
+       'arguments' => array('variables' => NULL)
+    )
+  );
+}
+
+/**
+* Return content specific to this page
+*/
+
+function matt_portfolio_func($variables){
+	
+	global $language_url, $base_url;
+	
+	$html = '';
+	  	
+	
+	if(array_key_exists('title',$variables)){
+		$title = $variables['title'];
+	}else{
+		$title = '';	
+	}
+	//
+	if(array_key_exists('body',$variables)){
+		$body = $variables['body'];
+	}else{
+		$body = '';	
+	}
+	
+
+	
+	if($title != ''){
+		
+		//Sanatise the title
+		$title = str_replace('--','',$title);
+		$title = str_replace(' ','_',$title);
+		
+		//Create album and pager dependent on the page title
+		$pth = 'sites/default/files/portfolio';
+		
+		$d = dir($pth);
+		$i = 0;
+		$targetFolder = '';
+		$projectItems = array();
+		$pattern = '/^[\._]/';
+		$classNo = 0;
+		$albumText = true;
+		
+		
+		while (false !== ($entry = $d->read())) {
+			if(is_dir($pth.'/'.$entry)){
+				if($title == $entry){
+					$targetFolder = $entry;
+				}
+			}
+		}
+	
+		
+		if($targetFolder != ''){
+			$d1 = dir($pth.'/'.$targetFolder);
+			$projectItems = array();
+			
+			while (false !== ($entry1 = $d1->read())) {
+				$q = dotCheck($pattern,$entry1);
+			
+				if(($entry1 != "Thumbs.db") && ($q < 1) && ($entry1 != "thumb.jpg")){
+					$projectItems[] = $entry1;
+				}
+				
+			}
+			//Sort the images and start html
+			sort($projectItems);
+		}
+		
+		$numImages = count($projectItems);
+		
+		$html .= '<div id="view">';
+		/*
+		$html .= '<div id="emailSub"><a href="javascript:void(0);" id="emailSubLink">subscribe for email updates</a>';
+		$html .= '<div id="subForm">';
+		$html .= '<a href="javascript:void(0);" id="closeForm"></a>';
+		$html .= '<form id="emailSubForm" name="emailSubForm">';
+		$html .= '<label for="email">email:</label><input type="textfield" name="email" id="email" /><br/>';
+		$html .= '<input type="submit" name="submit" id="emailSubmit" value="sign up" />';
+		$html .= '</form>';
+		$html .= '<div id="formErrors"></div>';
+		$html .= '</div>';
+		$html .= '</div>';
+		*/
+		if ($numImages > 18) {
+			$html .= '<div id="pagerWrap" class="scrollify">';	
+		}else{
+			$html .= '<div id="pagerWrap">';
+		}
+		$html .= '<ul class="pager">';
+		for($x=0;$x<$numImages;$x++){
+			$y = $x+1;
+			if($x == 0){
+				$html .= '<li id="pager_'.$x.'"><a href="javascript:void(0);" class="activePage">--'.$y.'</a></li>';		
+			}else{
+				$html .= '<li id="pager_'.$x.'"><a href="javascript:void(0);">--'.$y.'</a></li>';		
+			}
+		}
+		$html .= '</ul>';
+		$html .= '</div>';
+		$html .= '<div class="clear"></div>';
+
+		/*
+		$html .= '<div id="albumCover">';
+		$html .= '	<div id="leftCover"></div>';
+		$html .= '    <a href="javascript:void(0);" id="leftPane">&nbsp;</a>';
+		$html .= '	<div id="album">';
+		*/
+		
+		//Grab the text now as we need the alt text for the image
+		//Grab the first description of it if it is available else the default ablum text
+		$bodyText = '';
+		$alt = '';
+		$sql = "SELECT n.title, fdb.body_value, fa.field_alt_value ".
+				"FROM {node} AS n ".
+				"LEFT JOIN {field_data_field_alt} AS fa ON(fa.entity_id = n.nid) ".
+				"LEFT JOIN {field_data_body} AS fdb ON(fdb.entity_id = n.nid) ".
+				/*"LEFT JOIN {field_data_field_album} AS fa ON(fa.entity_id = fdb.entity_id) ".
+				"LEFT JOIN {taxonomy_term_data} AS ttd ON(ttd.tid = fa.field_album_tid) ".
+				"WHERE ttd.name = :name";*/
+				"WHERE n.type = :type AND n.title = :title";
+		$result = db_query($sql,array(':type' => 'blog', ':title'=>$targetFolder.'_1'));
+		$number_of_rows = $result->rowCount();
+		if($number_of_rows > 0){
+			foreach($result as $record){
+				if($record->body_value != ''){
+					$bodyText .= $record->body_value;
+					$albumText = false;
+				}else{
+					$bodyText .= $body;
+				}
+				$alt .= $record->field_alt_value;		
+			}
+		}else{
+			$bodyText .= $body;
+		}
+		//////////////////////////
+		
+		$z = 0;
+		$imageHtml = '';
+		$firstWidth = 0;
+		foreach($projectItems as $item){
+			
+			$thisimageurl = 'public://portfolio/'.$targetFolder.'/'.$item;
+			$classy = 'image';
+			if(is_file($thisimageurl)){
+				$imageDetails = getimagesize($thisimageurl);
+				$classy .= $imageDetails[0];
+				if ($z == 0) {
+					$firstWidth = $classy;
+				}
+			}
+			if($z == 0){
+				$imageHtml .= '<div id="image_'.$z.'" class="albumimg '.$classy.' active"><div class="loaded"><img src="'.$base_url.'/sites/default/files/portfolio/'.$targetFolder.'/'.$item.'" width="'.$imageDetails[0].'" height="'.$imageDetails[1].'" alt="'.$alt.'" /></div>';
+			}else{
+				//$imageHtml .= '<div id="image_'.$z.'" class="albumimg '.$classy.'">';
+				$imageHtml .= '<div id="image_'.$z.'" class="albumimg hidden">';
+			}
+			$imageHtml .= '<span class="hidden">'.$base_url.'/sites/default/files/portfolio/'.$targetFolder.'/'.$item.'</span>';
+			if($imageDetails != NULL){
+				$imageHtml .= '<span class="hidden">'.$imageDetails[0].'</span>';
+				$imageHtml .= '<span class="hidden">'.$imageDetails[1].'</span>';
+				$imageHtml .= '<span class="hidden">'.$targetFolder.'_'.($z+1).'</span>';
+				//Try to get alt text
+				$sql = "SELECT n.nid, fa.field_alt_value ".
+						"FROM {node} AS n ".
+						"LEFT JOIN {field_data_field_alt} AS fa ON(fa.entity_id = n.nid) ".
+						"WHERE n.title = :title";
+				$result = db_query($sql,array(':title'=>$targetFolder.'_'.($z+1)));
+				$number_of_rows = $result->rowCount();
+				if($number_of_rows > 0){
+					foreach($result as $record){
+						$imageHtml .= '<span class="hidden">'.$record->field_alt_value.'</span>';		
+					}
+				}
+			}
+			$imageHtml .= '</div>';
+			
+			//$html .= theme_image_style(array( 'path' => $thisimageurl, 'style_name' => 'html'));
+
+			$z++;
+		}
+		
+
+		$albumPrefix = '<div id="albumCover" class="album'.$firstWidth.'">';
+		$albumPrefix .= '	<div id="leftCover"></div>';
+		$albumPrefix .= '    <a href="javascript:void(0);" id="leftPane" class="paneNav" data-dir="left">&nbsp;</a>';
+		$albumPrefix .= '	<div id="album">';
+		
+		$albumSuffix = '   </div>';
+		$albumSuffix .= '    <div id="rightCover"></div>';
+		$albumSuffix .= '    <a href="javascript:void(0);" id="rightPane" class="paneNav" data-dir="right">&nbsp;</a>';
+		$albumSuffix .= '</div>'; //End #albumCover
+
+		//Think about: http://pgwjs.com/pgwslideshow/
+
+
+		//Make it up
+		$html .= $albumPrefix.$imageHtml.$albumSuffix;
+
+		
+		$html .= '</div>';
+		$albumTextClass = ($albumText)? 'albumTextYes' : '';
+		$html .= '<div id="content_text" class="'.$albumTextClass.'">';
+		$html .= $bodyText;
+		$html .= '</div>';//End #content_text
+	}else{
+		$html .= '<p><strong>The album was not found</strong></p>';	
+	}
+	
+	return $html;
+
+
+}
+
+/**
+*Utility function to check for ._ files and folders
+*/
+function dotCheck($pattern,$entry){
+	$i = 0;
+	$i = preg_match($pattern,$entry);
+	return $i;
+}

@@ -1,0 +1,121 @@
+<?php
+
+/**
+ * Implementation of hook_theme
+ */
+
+function matt_showcase_theme() {
+  return array(
+    'matt_showcase' => array(
+       'function' => 'matt_showcase_func',
+       'arguments' => array('variables' => NULL)
+    )
+  );
+}
+
+/**
+* Return content specific to this page
+*/
+
+function matt_showcase_func($variables){
+	
+	global $language_url, $base_url;
+	
+	$html = '';
+	  	
+	
+	if(array_key_exists('title',$variables)){
+		$title = $variables['title'];
+	}else{
+		$title = '';	
+	}
+	//
+	if(array_key_exists('body',$variables)){
+		$body = $variables['body'];
+	}else{
+		$body = '';	
+	}
+	
+	
+	
+	//Create album and pager dependent on the page title
+	$pth = 'sites/default/files/showcase';
+	
+	$d = dir($pth);
+	$projectItems = array();
+	$pattern = '/^[\._]/';
+	
+	
+	$d1 = dir($pth);
+	$projectItems = array();
+	
+	while (false !== ($entry1 = $d1->read())) {
+		$q = dotCheck2($pattern,$entry1);
+	
+		if(($entry1 != "Thumbs.db") && ($q < 1) && ($entry1 != "thumb.jpg")){
+			$projectItems[] = $entry1;
+		}
+		
+	}
+	
+	//Sort the images and start html
+	sort($projectItems);
+	$linkArr = array(
+		"portfolio/serengeti-lions","portfolio/people","portfolio/people","portfolio/golden-bay","portfolio/poland","portfolio/poland"
+	);
+	//Alt array - very manual!
+	$altArr = array(
+		"Two male lions walking in the Serengeti",
+		"A wonderful couple who let me photograph them in the Gold Coast",
+		"A chance encounter at Guy Fawkes in Wellington, New Zealand",
+		"Around the fire light in Golden Bay, New Zealand",
+		"A lone cow in a small quaint town in Poland",
+		"A cold winter walk in Vilnius, Poland"
+	);
+	
+	
+	$html .= '<div id="showcaseAlbum">';
+	
+	$z = 0;
+	foreach($projectItems as $item){
+		
+		$thisimageurl = 'public://showcase/'.$item;
+		if(is_file($thisimageurl)){
+			$imageDetails = getimagesize($thisimageurl);
+		}
+		if($z == 0){
+			$html .= '<div id="image_'.$z.'" class="showcaseImage activeShow"><a href="'.$base_url.'/'.$linkArr[$z].'"><img src="'.$base_url.'/sites/default/files/showcase/'.$item.'" alt="'.$altArr[$z].'" /></a></div>';
+		}else{
+			$html .= '<div id="image_'.$z.'" class="showcaseImage">';
+			$html .= '<a href="'.$base_url.'/'.$linkArr[$z].'"><span class="hidden">'.$base_url.'/sites/default/files/showcase/'.$item.'</span></a>';
+			if($imageDetails != NULL){
+				$html .= '<span class="hidden">'.$imageDetails[0].'</span>';
+				$html .= '<span class="hidden">'.$imageDetails[1].'</span>';
+				$html .= '<span class="hidden">'.$altArr[$z].'</span>';
+			}
+			$html .= '</div>';
+		}
+
+		$z++;
+	}
+	
+	
+	$html .= '</div>';
+	$html .= '<div id="content">';
+	$html .= $body;
+	$html .= '</div>';
+	
+	
+	return $html;
+
+
+}
+
+/**
+*Utility function to check for ._ files and folders
+*/
+function dotCheck2($pattern,$entry){
+	$i = 0;
+	$i = preg_match($pattern,$entry);
+	return $i;
+}
